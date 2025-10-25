@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
 """
-Dynamic Telegram Name Updater
+Dynamic Telegram Name Updater + Flask for Render
 ویژگی‌ها:
 - آپدیت خودکار اسم تلگرام با ساعت تهران
-- نمایش ساعت HH:MM کنار اسم
 - تغییر فونت اسم + ساعت هر دقیقه
 - کار با Session String
-- آماده اجرا روی Render یا هر سرور مشابه
+- سرور Flask برای Render (لایو بودن)
 """
 import os
 import asyncio
@@ -14,9 +13,9 @@ from datetime import datetime
 import pytz
 from telethon import TelegramClient, functions
 from telethon.sessions import StringSession
+from flask import Flask
 from dotenv import load_dotenv
 
-# بارگذاری متغیرها از فایل .env
 load_dotenv()
 
 API_ID = os.getenv("API_ID")
@@ -26,13 +25,10 @@ SESSION_STRING = os.getenv("SESSION_STRING")
 if not all([API_ID, API_HASH, SESSION_STRING]):
     raise SystemExit("❌ لطفاً API_ID, API_HASH و SESSION_STRING را در .env وارد کنید.")
 
-# منطقه زمانی تهران
 TEHRAN_TZ = pytz.timezone("Asia/Tehran")
-
-# اسم کاربری اصلی
 USERNAME = "YASIN"
 
-# لیست فونت‌ها (تغییر حروف با یونیکد و حالت‌های مختلف)
+# فونت‌ها برای تغییر اسم + ساعت
 FONTS = [
     lambda t: t,  # عادی
     lambda t: ''.join(['𝐀' if c.isupper() else c for c in t]),  # بولد
@@ -41,32 +37,46 @@ FONTS = [
     lambda t: ''.join(['𝓎' if c.islower() else c for c in t]),  # حروف خمیده
 ]
 
+# ======== Task آپدیت اسم تلگرام ========
 async def update_name():
-    """آپدیت اسم تلگرام با ساعت و تغییر فونت هر دقیقه"""
     client = TelegramClient(StringSession(SESSION_STRING), int(API_ID), API_HASH)
     await client.start()
     print("✅ Client connected. Starting dynamic name updates...")
-    font_index = 0  # برای تغییر متوالی فونت‌ها
-
+    font_index = 0
     while True:
         try:
-            # گرفتن ساعت دقیق تهران
             now = datetime.now(TEHRAN_TZ)
-            time_str = now.strftime("%H:%M")  # ساعت به صورت HH:MM
-
-            # انتخاب فونت متوالی
+            time_str = now.strftime("%H:%M")  # ساعت تهران
             font_func = FONTS[font_index % len(FONTS)]
             new_name = font_func(USERNAME) + " | " + font_func(time_str)
             font_index += 1
-
-            # آپدیت اسم
             await client(functions.account.UpdateProfileRequest(first_name=new_name))
             print(f"✅ Updated name: {new_name}")
-
         except Exception as e:
             print("⚠️ Error updating name:", e)
+        await asyncio.sleep(60)  # آپدیت هر دقیقه
 
-        await asyncio.sleep(60)  # هر دقیقه آپدیت می‌شود
+# ======== سرور Flask برای Render ========
+app = Flask("NameUpdater")
+
+@app.route("/")
+def index():
+    return "🚀 Bot is live!"
+
+# ======== اجرای همزمان Flask و آپدیت اسم ========
+async def main():
+    loop = asyncio.get_event_loop()
+    # اجرای Task تلگرام در بک‌گراند
+    loop.create_task(update_name())
+    # اجرای Flask به صورت blocking
+    port = int(os.environ.get("PORT", 10000))
+    from threading import Thread
+    def run_flask():
+        app.run(host="0.0.0.0", port=port)
+    Thread(target=run_flask).start()
+    # نگه داشتن main alive
+    while True:
+        await asyncio.sleep(3600)
 
 if __name__ == "__main__":
-    asyncio.run(update_name())
+    asyncio.run(main())
