@@ -47,7 +47,11 @@ async def update_name():
             print(f"✅ Updated name: {new_name}")
         except Exception as e:
             print("⚠️ Error updating name:", e)
-        await asyncio.sleep(60)
+
+        # Calculate delay until the next minute for precise timing
+        now_seconds = datetime.now(TEHRAN_TZ).second
+        delay = 60 - now_seconds
+        await asyncio.sleep(delay)
 
 # ======== سرور Flask برای Render ========
 app = Flask("NameUpdater")
