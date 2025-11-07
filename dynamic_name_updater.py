@@ -33,6 +33,11 @@ def bold_font(text: str) -> str:
     bold_map = {c: chr(ord(c) + 0x1D400 - ord('A')) if 'A' <= c <= 'Z' else chr(ord(c) + 0x1D41A - ord('a')) if 'a' <= c <= 'z' else c for c in 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'}
     return ''.join(bold_map.get(c, c) for c in text)
 
+# تابع جدید برای فونت فانتزی اعداد
+def fancy_numbers(text: str) -> str:
+    nums = str.maketrans("0123456789", "𝟶𝟷𝟸𝟹𝟺𝟻𝟼𝟽𝟾𝟿")
+    return text.translate(nums)
+
 # ======== Task آپدیت اسم تلگرام ========
 async def update_name():
     client = TelegramClient(StringSession(SESSION_STRING), int(API_ID), API_HASH)
@@ -42,7 +47,8 @@ async def update_name():
         try:
             now = datetime.now(TEHRAN_TZ)
             time_str = now.strftime("%H:%M")  # ساعت تهران
-            new_name = bold_font(USERNAME + " | " + time_str)
+            fancy_time = fancy_numbers(time_str)
+            new_name = bold_font(USERNAME) + " | " + fancy_time
             await client(functions.account.UpdateProfileRequest(first_name=new_name))
             print(f"✅ Updated name: {new_name}")
         except Exception as e:
