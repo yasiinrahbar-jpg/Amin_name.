@@ -1,0 +1,1 @@
+web: python3 dynamic_name_updater.py
