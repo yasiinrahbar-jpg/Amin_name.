@@ -26,7 +26,7 @@ if not all([API_ID, API_HASH, SESSION_STRING]):
     raise SystemExit("❌ لطفاً API_ID, API_HASH و SESSION_STRING را در .env وارد کنید.")
 
 # اسم اصلی از متغیر محیطی
-BASE_NAME = os.getenv("NAME", "YourName")
+BASE_NAME = os.getenv("BASE_NAME", "YourName")
 TEHRAN_TZ = pytz.timezone("Asia/Tehran")
 
 # لیست فونت‌ها
