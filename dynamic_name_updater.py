@@ -58,9 +58,15 @@ def fancy_numbers(text: str) -> str:
 
 # ======== Task آپدیت اسم تلگرام ========
 async def update_name():
-    client = TelegramClient(StringSession(SESSION_STRING), int(API_ID), API_HASH)
-    await client.start()
-    print("✅ Client connected. Starting name updates...")
+    print("ℹ️ Initializing Telegram client...")
+    try:
+        client = TelegramClient(StringSession(SESSION_STRING), int(API_ID), API_HASH)
+        await client.start()
+        print("✅ Client connected. Starting name updates...")
+    except Exception as e:
+        print(f"❌ Error connecting to Telegram: {e}")
+        return
+
     font_index = 0
     while True:
         try:
@@ -96,7 +102,9 @@ def index():
 
 # ======== اجرای همزمان Flask و آپدیت اسم ========
 async def main():
+    print("ℹ️ Starting main function...")
     loop = asyncio.get_event_loop()
+    print("ℹ️ Creating update_name task...")
     loop.create_task(update_name())
     port = int(os.environ.get("PORT", 10000))
     from threading import Thread
