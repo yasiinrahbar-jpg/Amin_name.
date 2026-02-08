@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Telegram Name Updater with Dynamic Fonts and Clock
+Telegram Name Updater with Bold Name & Small Clock
 ویژگی‌ها:
-- آپدیت اسم تلگرام با فونت‌های متغیر و ساعت تهران
+- آپدیت اسم تلگرام با فونت بولد و شیک + ساعت کوچیک تهران
 - کار با Session String
 - سرور Flask برای Render جهت اجرای ۲۴/۷
 """
@@ -17,28 +17,22 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# API اطلاعات و سشن
+# ======= تنظیمات تلگرام از ENV =======
 API_ID = os.getenv("API_ID")
 API_HASH = os.getenv("API_HASH")
 SESSION_STRING = os.getenv("SESSION_STRING")
+BASE_NAME = os.getenv("BASE_NAME", "YASIN")  # اسم از env بخونه
+PORT = int(os.environ.get("PORT", 10000))
 
 if not all([API_ID, API_HASH, SESSION_STRING]):
     raise SystemExit("❌ لطفاً API_ID, API_HASH و SESSION_STRING را در .env وارد کنید.")
 
-# اسم اصلی از متغیر محیطی
-BASE_NAME = "YASIN"
+# ======= فونت اسم بولد و شیک =======
+NAME_FONT = "𝐀𝐁𝐂𝐃𝐄𝐅𝐆𝐇𝐈𝐉𝐊𝐋𝐌𝐍𝐎𝐏𝐐𝐑𝐒𝐓𝐔𝐕𝐖𝐗𝐘𝐙"
 TEHRAN_TZ = pytz.timezone("Asia/Tehran")
 
-# لیست فونت‌ها
-FONTS = [
-    "𝓐𝓑𝓒𝓓𝓔𝓕𝓖𝓗𝓘𝓙𝓚𝓛𝓜𝓝𝓞𝓟𝓠𝓡𝓢𝓣𝓤𝓥𝓦𝓧𝓨𝓩",
-    "𝐀𝐁𝐂𝐃𝐄𝐅𝐆𝐇𝐈𝐉𝐊𝐋𝐌𝐍𝐎𝐏𝐐𝐑𝐒𝐓𝐔𝐕𝐖𝐗𝐘𝐙",
-    "𝔄𝔅ℭ𝔇𝔈𝔉𝔊ℌℑ𝔍𝔎𝔏𝔐𝔑𝔒𝔓𝔔ℜ𝔖𝔗𝔘𝔙𝔚𝔛𝔜ℨ",
-    "𝒜𝐵𝒞𝒟𝐸𝐹𝒢𝐻𝐼𝐽𝐾𝐿𝑀𝒩𝒪𝒫𝒬𝑅𝒮𝒯𝒰𝒱𝒲𝒳𝒴𝒵",
-]
-
+# ======= تبدیل اسم به فونت ثابت =======
 def stylize_name(name, font):
-    # تبدیل حروف اسم به فونت انتخابی
     styled = ""
     for c in name:
         if 'a' <= c.lower() <= 'z':
@@ -51,12 +45,23 @@ def stylize_name(name, font):
             styled += c
     return styled
 
-def fancy_numbers(text: str) -> str:
-    # تبدیل اعداد به فونت فانتزی
-    nums = str.maketrans("0123456789", "𝟶𝟷𝟸𝟹𝟺𝟻𝟼𝟽𝟾𝟿")
-    return text.translate(nums)
+# ======= تبدیل ساعت به اعداد کوچیک (superscript) =======
+def small_time(text: str) -> str:
+    return (
+        text.replace("0", "⁰")
+            .replace("1", "¹")
+            .replace("2", "²")
+            .replace("3", "³")
+            .replace("4", "⁴")
+            .replace("5", "⁵")
+            .replace("6", "⁶")
+            .replace("7", "⁷")
+            .replace("8", "⁸")
+            .replace("9", "⁹")
+            .replace(":", "ː")  # دو نقطه کوچیک
+    )
 
-# ======== Task آپدیت اسم تلگرام ========
+# ======= آپدیت اسم تلگرام =======
 async def update_name():
     print("ℹ️ Initializing Telegram client...")
     try:
@@ -67,52 +72,47 @@ async def update_name():
         print(f"❌ Error connecting to Telegram: {e}")
         return
 
-    font_index = 0
+    styled_name = stylize_name(BASE_NAME, NAME_FONT)
+
     while True:
         try:
-            # انتخاب فونت و استایل‌دهی به نام
-            current_font = FONTS[font_index % len(FONTS)]
-            styled_name = stylize_name(BASE_NAME, current_font)
-
-            # دریافت و فرمت‌دهی ساعت تهران
+            # دریافت ساعت تهران و تبدیل به superscript
             now = datetime.now(TEHRAN_TZ)
             time_str = now.strftime("%H:%M")
-            fancy_time = fancy_numbers(time_str)
+            small_clock = small_time(time_str)
 
-            # ترکیب نهایی نام و آپدیت پروفایل
-            new_name = f"{styled_name} | {fancy_time}"
+            # ترکیب اسم و ساعت (چسبیده)
+            new_name = f"{styled_name}{small_clock}"
             await client(functions.account.UpdateProfileRequest(first_name=new_name))
             print(f"✅ Updated name: {new_name}")
 
-            font_index += 1
         except Exception as e:
             print(f"⚠️ Error updating name: {e}")
 
-        # محاسبه تأخیر تا دقیقه بعدی برای زمان‌بندی دقیق
+        # صبر تا دقیقه بعد برای آپدیت دقیق
         now_seconds = datetime.now(TEHRAN_TZ).second
         delay = 60 - now_seconds
         await asyncio.sleep(delay)
 
-# ======== سرور Flask برای Render ========
+# ======= سرور Flask برای Render =======
 app = Flask("NameUpdater")
 
 @app.route("/")
 def index():
     return "🚀 Bot is live!"
 
-# ======== اجرای همزمان Flask و آپدیت اسم ========
+# ======= اجرای همزمان Flask و آپدیت اسم =======
 async def main():
     print("ℹ️ Starting main function...")
     loop = asyncio.get_event_loop()
-    print("ℹ️ Creating update_name task...")
     loop.create_task(update_name())
-    port = int(os.environ.get("PORT", 10000))
+
     from threading import Thread
     def run_flask():
-        app.run(host="0.0.0.0", port=port)
+        app.run(host="0.0.0.0", port=PORT)
     Thread(target=run_flask, daemon=True).start()
-    print(f"🚀 Flask server started on port {port}")
-    # حلقه اصلی برای زنده نگه داشتن برنامه
+
+    print(f"🚀 Flask server started on port {PORT}")
     while True:
         await asyncio.sleep(3600)
 
