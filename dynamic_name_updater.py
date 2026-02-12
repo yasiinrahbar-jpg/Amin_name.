@@ -8,7 +8,7 @@ Telegram Name Updater with Bold Name & Small Clock
 """
 import os
 import asyncio
-from datetime import datetime
+from datetime import datetime, timedelta
 import pytz
 from telethon import TelegramClient, functions
 from telethon.sessions import StringSession
@@ -62,16 +62,8 @@ def small_time(text: str) -> str:
     )
 
 # ======= آپدیت اسم تلگرام =======
-async def update_name():
-    print("ℹ️ Initializing Telegram client...")
-    try:
-        client = TelegramClient(StringSession(SESSION_STRING), int(API_ID), API_HASH)
-        await client.start()
-        print("✅ Client connected. Starting name updates...")
-    except Exception as e:
-        print(f"❌ Error connecting to Telegram: {e}")
-        return
-
+async def update_name(client):
+    print("✅ Starting name updates...")
     styled_name = stylize_name(BASE_NAME, NAME_FONT)
 
     while True:
@@ -83,16 +75,24 @@ async def update_name():
 
             # ترکیب اسم و ساعت (چسبیده)
             new_name = f"{styled_name}{small_clock}"
-            await client(functions.account.UpdateProfileRequest(first_name=new_name))
-            print(f"✅ Updated name: {new_name}")
+
+            try:
+                await client(functions.account.UpdateProfileRequest(first_name=new_name))
+                print(f"✅ Updated name: {new_name}")
+            except Exception as e:
+                print(f"⚠️ Error updating profile: {e}")
+                await asyncio.sleep(10) # 10 seconds retry delay
+                continue
 
         except Exception as e:
-            print(f"⚠️ Error updating name: {e}")
+            print(f"⚠️ Error in update loop: {e}")
+            await asyncio.sleep(10)
 
-        # صبر تا دقیقه بعد برای آپدیت دقیق
-        now_seconds = datetime.now(TEHRAN_TZ).second
-        delay = 60 - now_seconds
-        await asyncio.sleep(delay)
+        # محاسبه دقیق تا دقیقه بعد
+        next_minute = (now.replace(second=0, microsecond=0) + timedelta(minutes=1))
+        delay = (next_minute - datetime.now(TEHRAN_TZ)).total_seconds()
+        if delay > 0:
+            await asyncio.sleep(delay)
 
 # ======= سرور Flask برای Render =======
 app = Flask("NameUpdater")
@@ -104,17 +104,22 @@ def index():
 # ======= اجرای همزمان Flask و آپدیت اسم =======
 async def main():
     print("ℹ️ Starting main function...")
-    loop = asyncio.get_event_loop()
-    loop.create_task(update_name())
 
+    # Initialize and start the Telegram client
+    print("ℹ️ Initializing Telegram client...")
+    client = TelegramClient(StringSession(SESSION_STRING), int(API_ID), API_HASH)
+    await client.start()
+    print("✅ Client connected.")
+
+    # Start Flask server in a separate thread
     from threading import Thread
     def run_flask():
         app.run(host="0.0.0.0", port=PORT)
     Thread(target=run_flask, daemon=True).start()
-
     print(f"🚀 Flask server started on port {PORT}")
-    while True:
-        await asyncio.sleep(3600)
+
+    # Run the name updater (this is an infinite loop)
+    await update_name(client)
 
 if __name__ == "__main__":
     asyncio.run(main())
